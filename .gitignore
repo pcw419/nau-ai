@@ -1,0 +1,8 @@
+.env
+venv/
+__pycache__/
+system_prompt.txt
+memory.json
+chat_history.json
+user.json
+theme.json
