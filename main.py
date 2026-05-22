@@ -386,6 +386,8 @@ else:
 
     if "view_history" not in st.session_state:
         st.session_state.view_history = None
+    if "editing_title" not in st.session_state:
+        st.session_state.editing_title = None
 
     with st.sidebar:
         st.header("테마")
@@ -436,26 +438,61 @@ else:
             st.divider()
             st.header("이전 대화 기록")
             for i, session in enumerate(reversed(history)):
-                label = session["date"]
-                if st.button(label, key=f"history_{i}"):
-                    st.session_state.view_history = len(history) - 1 - i
-                    st.rerun()
+                actual_index = len(history) - 1 - i
+                label = session.get("title", session["date"])
+                col_a, col_b = st.columns([4, 1])
+                with col_a:
+                    if st.button(label, key=f"history_{i}"):
+                        st.session_state.view_history = actual_index
+                        st.session_state.editing_title = None
+                        st.rerun()
+                with col_b:
+                    if st.button("🖊️", key=f"edit_{i}"):
+                        st.session_state.editing_title = actual_index
+                        st.session_state.view_history = None
+                        st.rerun()
 
         if memory.get('unresolved_questions'):
             st.divider()
             st.header("이어갈 질문들")
             for q in memory.get('unresolved_questions', []):
                 st.write(f"• {q}")
-
+    # 제목 수정 모드
+    if st.session_state.editing_title is not None:
+        edit_idx = st.session_state.editing_title
+        history = load_chat_history()
+        if edit_idx < len(history):
+            st.title("🖊️ 제목 수정")
+            current_title = history[edit_idx].get("title", history[edit_idx]["date"])
+            new_title = st.text_input("새 제목을 입력해줘", value=current_title)
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("저장"):
+                    history[edit_idx]["title"] = new_title
+                    save_chat_history(history)
+                    st.session_state.editing_title = None
+                    st.rerun()
+            with col2:
+                if st.button("취소"):
+                    st.session_state.editing_title = None
+                    st.rerun()
     # 이전 대화 보기 모드
-    if st.session_state.view_history is not None:
+    elif st.session_state.view_history is not None:
         history = load_chat_history()
         selected = history[st.session_state.view_history]
 
         st.title(f"💭 {selected['date']} 대화 기록")
-        if st.button("← 현재 대화로 돌아가기"):
-            st.session_state.view_history = None
-            st.rerun()
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("← 현재 대화로 돌아가기"):
+                st.session_state.view_history = None
+                st.rerun()
+        with col2:
+            if st.button("↩ 이 대화 이어하기"):
+                st.session_state.messages = selected["messages"].copy()
+                st.session_state.view_history = None
+                st.rerun()
 
         st.divider()
 
