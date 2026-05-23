@@ -250,7 +250,14 @@ def auto_summarize_and_save(messages):
     conversation_text = ""
     for msg in messages:
         role = "사용자" if msg["role"] == "user" else "AI"
-        conversation_text += f"{role}: {msg['content']}\n\n"
+        content = msg["content"]
+        # 이미지가 포함된 메시지는 텍스트만 추출
+        if isinstance(content, list):
+            text_parts = [item["text"] for item in content if item.get("type") == "text"]
+            content = " ".join(text_parts)
+            conversation_text += f"{role}: [이미지 첨부] {content}\n\n"
+        else:
+            conversation_text += f"{role}: {content}\n\n"
 
     summary_prompt = f"""아래 대화를 분석해서 JSON 형식으로만 응답해줘.
 마크다운 코드블록 없이, 순수 JSON만 출력해야 해.
@@ -314,16 +321,32 @@ def auto_summarize_and_save(messages):
 
         save_memory(memory)
 
-        # 대화 원문 저장
+        # 대화 원문 저장 (이미지 데이터 제거)
+        clean_messages = []
+        for msg in messages:
+            content = msg["content"]
+            if isinstance(content, list):
+                clean_content = []
+                for item in content:
+                    if item.get("type") == "text":
+                        clean_content.append(item)
+                    elif item.get("type") == "image":
+                        clean_content.append({
+                            "type": "text",
+                            "text": "[이미지 첨부됨]"
+                        })
+                clean_messages.append({"role": msg["role"], "content": clean_content})
+            else:
+                clean_messages.append(msg)
+
         history = load_chat_history()
         history.append({
             "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "messages": messages
+            "messages": clean_messages
         })
         save_chat_history(history)
 
         return True
-
     except Exception as e:
         st.error(f"오류 내용: {str(e)}")
         print(f"오류 내용: {str(e)}")
@@ -506,13 +529,64 @@ else:
 
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+                content = message["content"]
+                if isinstance(content, list):
+                    for item in content:
+                        if item.get("type") == "image":
+                            import base64
+                            image_bytes = base64.b64decode(item["source"]["data"])
+                            st.image(image_bytes, width=300)
+                        elif item.get("type") == "text":
+                            st.markdown(item["text"])
+                else:
+                    st.markdown(content)
+
+        # 이미지 업로드
+        if "uploader_key" not in st.session_state:
+            st.session_state.uploader_key = 0
+
+        uploaded_image = st.file_uploader(
+            "이미지 첨부 (선택)",
+            type=["jpg", "jpeg", "png", "gif", "webp"],
+            label_visibility="collapsed",
+            key=f"uploader_{st.session_state.uploader_key}"
+        )
 
         if prompt := st.chat_input("여기에 입력해줘"):
-            st.session_state.messages.append({"role": "user", "content": prompt})
+            if uploaded_image is not None:
+                import base64
+                image_bytes = uploaded_image.read()
+                image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
+                media_type = uploaded_image.type
+                user_message = {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": image_data,
+                            }
+                        },
+                        {
+                            "type": "text",
+                            "text": prompt
+                        }
+                    ]
+                }
+                # 화면에는 이미지 미리보기 + 텍스트만 표시
+                with st.chat_message("user"):
+                    st.image(image_bytes, width=300)
+                    st.markdown(prompt)
+            else:
+                user_message = {"role": "user", "content": prompt}
+                with st.chat_message("user"):
+                    st.markdown(prompt)
 
-            with st.chat_message("user"):
-                st.markdown(prompt)
+            st.session_state.messages.append(user_message)
+            # 이미지 초기화
+            st.session_state.uploader_key += 1
 
             with st.chat_message("assistant"):
                 with st.spinner("생각 중..."):
