@@ -295,7 +295,12 @@ def auto_summarize_and_save(messages):
         if start != -1 and end > start:
             raw_text = raw_text[start:end]
 
-        summary_data = json.loads(raw_text)
+        try:
+            summary_data = json.loads(raw_text)
+        except json.JSONDecodeError:
+            # 특수문자로 인한 파싱 실패 시 재시도
+            raw_text = raw_text.replace('\n', ' ').replace('\r', ' ')
+            summary_data = json.loads(raw_text)
 
         memory = load_memory()
         memory["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -552,6 +557,19 @@ else:
             key=f"uploader_{st.session_state.uploader_key}"
         )
 
+        # 마지막 응답 다시 생성
+        if len(st.session_state.messages) >= 2:
+            last_msg = st.session_state.messages[-1]
+            if last_msg["role"] == "assistant":
+                if st.button("🔄 답변 재생성"):
+                    st.session_state.messages.pop()
+                    with st.chat_message("assistant"):
+                        with st.spinner("생각 중..."):
+                            response = get_ai_response(st.session_state.messages)
+                        st.markdown(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    st.rerun()
+        
         if prompt := st.chat_input("여기에 입력해줘"):
             if uploaded_image is not None:
                 import base64
