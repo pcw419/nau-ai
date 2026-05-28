@@ -329,6 +329,8 @@ if "view_history" not in st.session_state:
     st.session_state.view_history = None
 if "editing_title" not in st.session_state:
     st.session_state.editing_title = None
+if "confirm_delete" not in st.session_state:
+    st.session_state.confirm_delete = None
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
 
@@ -419,12 +421,35 @@ else:
                         st.session_state.editing_title = actual_index
                         st.session_state.view_history = None
                         st.rerun()
+                with st.columns([4, 1])[1]:
+                    if st.button("🗑️", key=f"delete_{i}"):
+                        st.session_state.confirm_delete = actual_index
+                        st.rerun()
 
         if memory.get('unresolved_questions'):
             st.divider()
             st.header("이어갈 질문들")
             for q in memory.get('unresolved_questions', []):
                 st.write(f"• {q}")
+ 
+    # 삭제 확인 모드
+    if st.session_state.confirm_delete is not None:
+        delete_idx = st.session_state.confirm_delete
+        history = load_chat_history(user_id)
+        if delete_idx < len(history):
+            session = history[delete_idx]
+            title = session.get("title") or session.get("date", "이 대화")
+            st.warning(f"**'{title}'** 를 삭제할까요? 이 작업은 되돌릴 수 없어.")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("삭제", type="primary"):
+                    supabase.table("chat_history").delete().eq("id", session["id"]).execute()
+                    st.session_state.confirm_delete = None
+                    st.rerun()
+            with col2:
+                if st.button("취소"):
+                    st.session_state.confirm_delete = None
+                    st.rerun()
 
     # ── 제목 수정 모드 ────────────────────────────────────────
 
