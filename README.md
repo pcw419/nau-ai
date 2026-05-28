@@ -1,4 +1,4 @@
-# 💭 Nau — Personal Cognitive Analysis AI
+# 💭 Nau — Personal Cognitive Insight AI
 
 > "Existing AI tools analyze people. Nau helps people understand themselves."
 
