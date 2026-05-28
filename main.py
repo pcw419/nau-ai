@@ -256,23 +256,34 @@ def apply_theme(theme_name):
     st.markdown(f"""
     <style>
         .stApp {{ background-color: {t['bg']}; color: {t['text']}; }}
-        header[data-testid="stHeader"] {{ background-color: {t['bg']}; }}
+        header[data-testid="stHeader"] {{ 
+            background-color: {t['bg']}; }}
         section[data-testid="stSidebar"] {{
             background-color: {t['sidebar']};
             transform: none !important;
             min-width: 250px !important;
             width: 250px !important;
         }}
-        [data-testid="collapsedControl"] {{ display: none !important; }}
-        .stChatInput textarea {{ background-color: {t['bg']}; color: {t['text']}; border: none; }}
+         /* 모바일에서는 사이드바 접기 버튼 보이기 */
+        @media (max-width: 768px) {{
+            [data-testid="collapsedControl"] {{
+                display: flex !important;}}
+            section[data-testid="stSidebar"] {{
+                min-width: unset !important;
+                width: unset !important;}}
+        }}
+        .stChatInput textarea {{ 
+            background-color: {t['bg']}; color: {t['text']}; border: none; }}
         .stChatInput textarea::placeholder {{ color: {t['text']}; opacity: 0.6; }}
         .stChatInput > div {{
             border: 1px solid {t['text']}60;
             border-radius: 8px;
             background-color: {t['bg']};
         }}
-        .stChatInput > div:focus-within {{ border: 1px solid {t['text']}cc; }}
-        p, h1, h2, h3, h4, label, span {{ color: {t['text']} !important; }}
+        .stChatInput > div:focus-within {{ 
+            border: 1px solid {t['text']}cc; }}
+        p, h1, h2, h3, h4, label, span {{ 
+            color: {t['text']} !important; }}
         .stButton button {{
             background-color: {t['sidebar']};
             color: {t['text']};
@@ -283,15 +294,24 @@ def apply_theme(theme_name):
             color: {t['text']};
             border: 1px solid {t['text']}80;
         }}
-        .stSelectbox div[data-baseweb="select"] {{ background-color: {t['input']}; color: {t['text']}; }}
-        .stSelectbox div[data-baseweb="select"] * {{ background-color: {t['input']}; color: {t['text']}; }}
-        .stBottom, .stBottom > div, .stBottom > div > div {{ background-color: {t['bg']} !important; }}
-        [data-testid="stBottom"], [data-testid="stBottom"] > div {{ background-color: {t['bg']} !important; }}
-        div[class*="floating"], div[class*="Floating"] {{ background-color: {t['bg']} !important; }}
-        div[class*="bottom"], div[class*="Bottom"] {{ background-color: {t['bg']} !important; }}
-        .stChatInput, .stChatInput > div, .stChatInput > div > div {{ background-color: {t['bg']} !important; }}
-        div[data-testid="stChatInputContainer"] {{ background-color: {t['bg']} !important; }}
-        div[data-testid="stChatInputContainer"] > div {{ background-color: {t['bg']} !important; }}
+        .stSelectbox div[data-baseweb="select"] {{ 
+            background-color: {t['input']}; color: {t['text']}; }}
+        .stSelectbox div[data-baseweb="select"] * {{ 
+            background-color: {t['input']}; color: {t['text']}; }}
+        .stBottom, .stBottom > div, .stBottom > div > div {{ 
+            background-color: {t['bg']} !important; }}
+        [data-testid="stBottom"], [data-testid="stBottom"] > div {{ 
+            background-color: {t['bg']} !important; }}
+        div[class*="floating"], div[class*="Floating"] {{ 
+            background-color: {t['bg']} !important; }}
+        div[class*="bottom"], div[class*="Bottom"] {{ 
+            background-color: {t['bg']} !important; }}
+        .stChatInput, .stChatInput > div, .stChatInput > div > div {{ 
+            background-color: {t['bg']} !important; }}
+        div[data-testid="stChatInputContainer"] {{ 
+            background-color: {t['bg']} !important; }}
+        div[data-testid="stChatInputContainer"] > div {{ 
+            background-color: {t['bg']} !important; }}
         .stChatMessage h1 {{ font-size: 1.2rem !important; font-weight: 600 !important; }}
         .stChatMessage h2 {{ font-size: 1.0rem !important; font-weight: 600 !important; }}
         .stChatMessage h3 {{ font-size: 0.95rem !important; font-weight: 600 !important; }}
@@ -315,7 +335,11 @@ st.markdown("""
         min-width: 250px !important;
         width: 250px !important;
     }
-    [data-testid="collapsedControl"] { display: none !important; }
+    @media (max-width: 768px) {
+        [data-testid="collapsedControl"] {
+            display: flex !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
