@@ -180,9 +180,9 @@ Built by **Chaewon Park**
 B.S. Computational and Data Science
 
 This project sits at the intersection of cognitive science, 
-AI engineering, and applied research. It started as a 
-personal tool and is developing toward a platform accessible 
-to others seeking the same kind of self-understanding.
+AI engineering, and applied research. It started as a personal tool 
+and is gradually being developed toward a platform accessible to others 
+seeking the same kind of self-understanding.
 
 ---
 
