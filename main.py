@@ -32,18 +32,35 @@ themes = {
     "하늘": {"bg": "#0d2137", "sidebar": "#1a3350", "text": "#c8e6ff", "input": "#1a3350"}
 }
 
+# ── Supabase Auth 함수 ────────────────────────────────────────
+
+def sign_up(email, password, nickname):
+    try:
+        res = supabase.auth.sign_up({"email": email, "password": password})
+        if res.user:
+            # users 테이블에 닉네임 저장
+            supabase.table("users").insert({
+                "auth_id": res.user.id,
+                "name": nickname,
+                "theme": "다크"
+            }).execute()
+            return res.user, None
+        return None, "회원가입 실패"
+    except Exception as e:
+        return None, str(e)
+
+def sign_in(email, password):
+    try:
+        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        if res.user:
+            user_res = supabase.table("users").select("*").eq("auth_id", res.user.id).execute()
+            if user_res.data:
+                return user_res.data[0], None
+        return None, "이메일 또는 비밀번호가 틀렸어."
+    except Exception as e:
+        return None, "이메일 또는 비밀번호가 틀렸어."
+
 # ── Supabase 데이터 함수 ──────────────────────────────────────
-
-def get_or_create_user(name):
-    res = supabase.table("users").select("*").eq("name", name).execute()
-    if res.data:
-        return res.data[0]
-    res = supabase.table("users").insert({"name": name, "theme": "다크"}).execute()
-    return res.data[0]
-
-def load_user_by_name(name):
-    res = supabase.table("users").select("*").eq("name", name).execute()
-    return res.data[0] if res.data else None
 
 def save_user_theme(user_id, theme_name):
     supabase.table("users").update({"theme": theme_name}).eq("id", user_id).execute()
@@ -91,11 +108,9 @@ def update_chat_title(session_id, title):
 # ── 시스템 프롬프트 ───────────────────────────────────────────
 
 def load_system_prompt():
-    # Streamlit Cloud Secrets에서 먼저 시도
     try:
         return st.secrets["SYSTEM_PROMPT"]
     except:
-        # 로컬에서는 파일에서 읽기
         with open(SYSTEM_PROMPT_FILE, "r", encoding="utf-8") as f:
             return f.read()
 
@@ -194,7 +209,6 @@ def auto_summarize_and_save(messages, user_id):
                 raw_text = raw_text.replace('\n', ' ').replace('\r', ' ')
                 summary_data = json.loads(raw_text)
             except json.JSONDecodeError:
-                # 최후 수단: 기본값으로 저장
                 summary_data = {
                     "session_summary": "자동 요약 실패 - 수동 확인 필요",
                     "discovered_patterns": [],
@@ -224,7 +238,6 @@ def auto_summarize_and_save(messages, user_id):
 
         save_memory(user_id, memory)
 
-        # 대화 원문 저장 (이미지 데이터 제거)
         clean_messages = []
         for msg in messages:
             content = msg["content"]
@@ -256,34 +269,29 @@ def apply_theme(theme_name):
     st.markdown(f"""
     <style>
         .stApp {{ background-color: {t['bg']}; color: {t['text']}; }}
-        header[data-testid="stHeader"] {{ 
-            background-color: {t['bg']}; }}
+        header[data-testid="stHeader"] {{ background-color: {t['bg']}; }}
         section[data-testid="stSidebar"] {{
             background-color: {t['sidebar']};
             transform: none !important;
             min-width: 250px !important;
             width: 250px !important;
         }}
-         /* 모바일에서는 사이드바 접기 버튼 보이기 */
         @media (max-width: 768px) {{
-            [data-testid="collapsedControl"] {{
-                display: flex !important;}}
+            [data-testid="collapsedControl"] {{ display: flex !important; }}
             section[data-testid="stSidebar"] {{
                 min-width: unset !important;
-                width: unset !important;}}
+                width: unset !important;
+            }}
         }}
-        .stChatInput textarea {{ 
-            background-color: {t['bg']}; color: {t['text']}; border: none; }}
+        .stChatInput textarea {{ background-color: {t['bg']}; color: {t['text']}; border: none; }}
         .stChatInput textarea::placeholder {{ color: {t['text']}; opacity: 0.6; }}
         .stChatInput > div {{
             border: 1px solid {t['text']}60;
             border-radius: 8px;
             background-color: {t['bg']};
         }}
-        .stChatInput > div:focus-within {{ 
-            border: 1px solid {t['text']}cc; }}
-        p, h1, h2, h3, h4, label, span {{ 
-            color: {t['text']} !important; }}
+        .stChatInput > div:focus-within {{ border: 1px solid {t['text']}cc; }}
+        p, h1, h2, h3, h4, label, span {{ color: {t['text']} !important; }}
         .stButton button {{
             background-color: {t['sidebar']};
             color: {t['text']};
@@ -294,24 +302,15 @@ def apply_theme(theme_name):
             color: {t['text']};
             border: 1px solid {t['text']}80;
         }}
-        .stSelectbox div[data-baseweb="select"] {{ 
-            background-color: {t['input']}; color: {t['text']}; }}
-        .stSelectbox div[data-baseweb="select"] * {{ 
-            background-color: {t['input']}; color: {t['text']}; }}
-        .stBottom, .stBottom > div, .stBottom > div > div {{ 
-            background-color: {t['bg']} !important; }}
-        [data-testid="stBottom"], [data-testid="stBottom"] > div {{ 
-            background-color: {t['bg']} !important; }}
-        div[class*="floating"], div[class*="Floating"] {{ 
-            background-color: {t['bg']} !important; }}
-        div[class*="bottom"], div[class*="Bottom"] {{ 
-            background-color: {t['bg']} !important; }}
-        .stChatInput, .stChatInput > div, .stChatInput > div > div {{ 
-            background-color: {t['bg']} !important; }}
-        div[data-testid="stChatInputContainer"] {{ 
-            background-color: {t['bg']} !important; }}
-        div[data-testid="stChatInputContainer"] > div {{ 
-            background-color: {t['bg']} !important; }}
+        .stSelectbox div[data-baseweb="select"] {{ background-color: {t['input']}; color: {t['text']}; }}
+        .stSelectbox div[data-baseweb="select"] * {{ background-color: {t['input']}; color: {t['text']}; }}
+        .stBottom, .stBottom > div, .stBottom > div > div {{ background-color: {t['bg']} !important; }}
+        [data-testid="stBottom"], [data-testid="stBottom"] > div {{ background-color: {t['bg']} !important; }}
+        div[class*="floating"], div[class*="Floating"] {{ background-color: {t['bg']} !important; }}
+        div[class*="bottom"], div[class*="Bottom"] {{ background-color: {t['bg']} !important; }}
+        .stChatInput, .stChatInput > div, .stChatInput > div > div {{ background-color: {t['bg']} !important; }}
+        div[data-testid="stChatInputContainer"] {{ background-color: {t['bg']} !important; }}
+        div[data-testid="stChatInputContainer"] > div {{ background-color: {t['bg']} !important; }}
         .stChatMessage h1 {{ font-size: 1.2rem !important; font-weight: 600 !important; }}
         .stChatMessage h2 {{ font-size: 1.0rem !important; font-weight: 600 !important; }}
         .stChatMessage h3 {{ font-size: 0.95rem !important; font-weight: 600 !important; }}
@@ -336,9 +335,7 @@ st.markdown("""
         width: 250px !important;
     }
     @media (max-width: 768px) {
-        [data-testid="collapsedControl"] {
-            display: flex !important;
-        }
+        [data-testid="collapsedControl"] { display: flex !important; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -357,25 +354,58 @@ if "confirm_delete" not in st.session_state:
     st.session_state.confirm_delete = None
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
+if "auth_mode" not in st.session_state:
+    st.session_state.auth_mode = "login"
 
-# ── 이름 입력 화면 ────────────────────────────────────────────
+# ── 로그인/회원가입 화면 ──────────────────────────────────────
 
 if st.session_state.user is None:
     st.title("💭 나우")
     st.write("")
-    st.subheader("처음 오셨군요. 이름을 입력해주세요.")
 
-    with st.form("name_form"):
-        name_input = st.text_input("이름", placeholder="이름을 입력해줘")
-        submitted = st.form_submit_button("시작하기")
+    if st.session_state.auth_mode == "login":
+        st.subheader("로그인")
+        with st.form("login_form"):
+            email = st.text_input("이메일", placeholder="이메일을 입력해줘")
+            password = st.text_input("비밀번호", type="password", placeholder="비밀번호를 입력해줘")
+            submitted = st.form_submit_button("로그인")
+            if submitted:
+                if email.strip() and password.strip():
+                    user, error = sign_in(email.strip(), password.strip())
+                    if user:
+                        st.session_state.user = user
+                        st.rerun()
+                    else:
+                        st.error(error)
+                else:
+                    st.warning("이메일과 비밀번호를 입력해줘.")
 
-        if submitted:
-            if name_input.strip():
-                user = get_or_create_user(name_input.strip())
-                st.session_state.user = user
-                st.rerun()
-            else:
-                st.warning("이름을 입력해줘.")
+        if st.button("처음 오셨나요? 회원가입"):
+            st.session_state.auth_mode = "signup"
+            st.rerun()
+
+    else:
+        st.subheader("회원가입")
+        with st.form("signup_form"):
+            email = st.text_input("이메일", placeholder="이메일을 입력해줘")
+            password = st.text_input("비밀번호", type="password", placeholder="비밀번호 (6자 이상)")
+            nickname = st.text_input("닉네임", placeholder="나우에서 사용할 이름")
+            submitted = st.form_submit_button("가입하기")
+            if submitted:
+                if email.strip() and password.strip() and nickname.strip():
+                    user, error = sign_up(email.strip(), password.strip(), nickname.strip())
+                    if user:
+                        st.success("가입 완료! 로그인해줘.")
+                        st.session_state.auth_mode = "login"
+                        st.rerun()
+                    else:
+                        st.error(error)
+                else:
+                    st.warning("모든 항목을 입력해줘.")
+
+        if st.button("이미 계정이 있나요? 로그인"):
+            st.session_state.auth_mode = "login"
+            st.rerun()
 
 else:
     user = st.session_state.user
@@ -420,6 +450,13 @@ else:
             st.session_state.view_history = None
             st.rerun()
 
+        if st.button("로그아웃"):
+            st.session_state.user = None
+            st.session_state.messages = []
+            st.session_state.view_history = None
+            st.session_state.auth_mode = "login"
+            st.rerun()
+
         st.divider()
         memory = load_memory(user_id)
         st.header("누적 메모리 현황")
@@ -455,7 +492,7 @@ else:
             st.header("이어갈 질문들")
             for q in memory.get('unresolved_questions', []):
                 st.write(f"• {q}")
- 
+
     # 삭제 확인 모드
     if st.session_state.confirm_delete is not None:
         delete_idx = st.session_state.confirm_delete
@@ -475,8 +512,7 @@ else:
                     st.session_state.confirm_delete = None
                     st.rerun()
 
-    # ── 제목 수정 모드 ────────────────────────────────────────
-
+    # 제목 수정 모드
     if st.session_state.editing_title is not None:
         edit_idx = st.session_state.editing_title
         history = load_chat_history(user_id)
@@ -496,8 +532,7 @@ else:
                     st.session_state.editing_title = None
                     st.rerun()
 
-    # ── 이전 대화 보기 모드 ───────────────────────────────────
-
+    # 이전 대화 보기 모드
     elif st.session_state.view_history is not None:
         history = load_chat_history(user_id)
         selected = history[st.session_state.view_history]
@@ -535,8 +570,7 @@ else:
                 else:
                     st.markdown(content)
 
-    # ── 메인 대화 화면 ────────────────────────────────────────
-
+    # 메인 대화 화면
     else:
         st.title(f"💭 안녕하세요, {user_name}님.")
         st.subheader("나우가 무엇을 도와드릴까요?")
@@ -554,7 +588,6 @@ else:
                 else:
                     st.markdown(content)
 
-        # 마지막 응답 다시 생성
         if len(st.session_state.messages) >= 2:
             last_msg = st.session_state.messages[-1]
             if last_msg["role"] == "assistant":
