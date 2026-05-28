@@ -324,7 +324,7 @@ st.set_page_config(
     page_title="나우",
     page_icon="💭",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 
 st.markdown("""
