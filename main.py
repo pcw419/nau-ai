@@ -91,8 +91,13 @@ def update_chat_title(session_id, title):
 # ── 시스템 프롬프트 ───────────────────────────────────────────
 
 def load_system_prompt():
-    with open(SYSTEM_PROMPT_FILE, "r", encoding="utf-8") as f:
-        return f.read()
+    # Streamlit Cloud Secrets에서 먼저 시도
+    try:
+        return st.secrets["SYSTEM_PROMPT"]
+    except:
+        # 로컬에서는 파일에서 읽기
+        with open(SYSTEM_PROMPT_FILE, "r", encoding="utf-8") as f:
+            return f.read()
 
 def build_system_prompt(user_id):
     base_prompt = load_system_prompt()
