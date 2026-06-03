@@ -141,13 +141,58 @@ def build_system_prompt(user_id):
 
 # ── AI 응답 ───────────────────────────────────────────────────
 
-def get_ai_response(messages, user_id):
-    system_prompt = build_system_prompt(user_id)
+def manage_context_window(messages, max_recent=15):
+    if len(messages) <= max_recent:
+        return messages, None
+
+    old_messages = messages[:-max_recent]
+    recent_messages = messages[-max_recent:]
+
+    old_text = ""
+    for msg in old_messages:
+        role = "사용자" if msg["role"] == "user" else "나우"
+        content = msg["content"]
+        if isinstance(content, list):
+            text_parts = [item["text"] for item in content
+                         if item.get("type") == "text"]
+            content = " ".join(text_parts)
+        old_text += f"{role}: {content}\n\n"
+
+    summary_prompt = f"""아래 대화를 3-5문장으로 요약해줘.
+핵심 주제, 발견된 패턴, 중요한 맥락만 포함해.
+마크다운 없이 순수 텍스트로만.
+
+대화:
+{old_text}"""
+
     response = client.messages.create(
         model="claude-sonnet-4-5",
-        max_tokens=4096,
+        max_tokens=500,
+        messages=[{"role": "user", "content": summary_prompt}]
+    )
+
+    summary = response.content[0].text
+    return recent_messages, summary
+
+def get_ai_response(messages, user_id):
+    system_prompt = build_system_prompt(user_id)
+
+    recent_messages, summary = manage_context_window(messages)
+
+    if summary:
+        system_prompt += f"""
+
+---
+
+# 이전 대화 요약
+{summary}
+"""
+
+    response = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=8096,
         system=system_prompt,
-        messages=messages
+        messages=recent_messages
     )
     return response.content[0].text
 
