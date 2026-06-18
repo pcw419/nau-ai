@@ -196,6 +196,36 @@ def get_ai_response(messages, user_id):
     )
     return response.content[0].text
 
+# ── 대화 자동 저장 (내용 보존용 목적) ────────────────────────────────
+
+def auto_save_session(user_id, messages):
+    clean_messages = []
+    for msg in messages:
+        content = msg["content"]
+        if isinstance(content, list):
+            clean_content = []
+            for item in content:
+                if item.get("type") == "text":
+                    clean_content.append(item)
+                elif item.get("type") == "image":
+                    clean_content.append({"type": "text", "text": "[이미지 첨부됨]"})
+            clean_messages.append({"role": msg["role"], "content": clean_content})
+        else:
+            clean_messages.append(msg)
+
+    if st.session_state.get("current_session_id"):
+        supabase.table("chat_history").update({
+            "messages": clean_messages
+        }).eq("id", st.session_state.current_session_id).execute()
+    else:
+        date_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        res = supabase.table("chat_history").insert({
+            "user_id": user_id,
+            "date": date_str,
+            "messages": clean_messages
+        }).execute()
+        st.session_state.current_session_id = res.data[0]["id"]
+
 # ── 자동 요약 및 저장 ─────────────────────────────────────────
 
 def auto_summarize_and_save(messages, user_id):
@@ -401,6 +431,8 @@ if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
 if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "login"
+if "current_session_id" not in st.session_state:
+    st.session_state.current_session_id = None
 
 # ── 로그인/회원가입 화면 ──────────────────────────────────────
 
@@ -484,6 +516,7 @@ else:
                     st.success("저장 완료!")
                     st.session_state.messages = []
                     st.session_state.view_history = None
+                    st.session_state.current_session_id = None
                     st.rerun()
                 else:
                     st.error("저장 중 오류가 생겼어. 다시 시도해줘.")
@@ -493,6 +526,7 @@ else:
         if st.button("저장 없이 초기화"):
             st.session_state.messages = []
             st.session_state.view_history = None
+            st.session_state.current_session_id = None 
             st.rerun()
 
         if st.button("로그아웃"):
@@ -688,3 +722,4 @@ else:
                 st.markdown(response)
 
             st.session_state.messages.append({"role": "assistant", "content": response})
+            auto_save_session(user_id, st.session_state.messages)
