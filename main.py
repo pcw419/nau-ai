@@ -114,8 +114,30 @@ def load_system_prompt():
         with open(SYSTEM_PROMPT_FILE, "r", encoding="utf-8") as f:
             return f.read()
 
+def load_personal_profile():
+    try:
+        return st.secrets["PERSONAL_PROFILE_CHAEWON"]
+    except:
+        try:
+            with open("personal_profile_chaewon.txt", "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            return ""
+
 def build_system_prompt(user_id):
     base_prompt = load_system_prompt()
+
+    # 채원 계정(user_id=2)일 때만 개인 프로필 추가
+    if user_id == 2:
+        personal_profile = load_personal_profile()
+        if personal_profile:
+            base_prompt += f"""
+
+---
+
+{personal_profile}
+"""
+
     memory = load_memory(user_id)
 
     memory_section = f"""
@@ -653,6 +675,18 @@ else:
     else:
         st.title(f"💭 안녕하세요, {user_name}님.")
         st.subheader("나우가 무엇을 도와드릴까요?")
+
+        # 신규 유저 첫 진입 시 자동으로 온보딩 메시지 생성
+        memory_check = load_memory(user_id)
+        is_brand_new = len(memory_check.get('session_summaries', [])) == 0
+
+        if is_brand_new and len(st.session_state.messages) == 0:
+            with st.chat_message("assistant"):
+                with st.spinner("생각 중..."):
+                    response = get_ai_response([{"role": "user", "content": "안녕"}], user_id)
+                st.markdown(response)
+            st.session_state.messages.append({"role": "assistant", "content": response})
+            auto_save_session(user_id, st.session_state.messages)
 
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
